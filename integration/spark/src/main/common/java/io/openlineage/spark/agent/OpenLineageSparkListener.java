@@ -43,6 +43,7 @@ import org.apache.spark.scheduler.SparkListenerJobEnd;
 import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.scheduler.SparkListenerTaskEnd;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
 import scala.Function0;
@@ -140,8 +141,13 @@ public class OpenLineageSparkListener extends org.apache.spark.scheduler.SparkLi
 
   /** called by the SparkListener when a spark-sql (Dataset api) execution starts */
   private static void sparkSQLExecStart(SparkListenerSQLExecutionStart startEvent) {
+    if (SQLExecution.getQueryExecution(startEvent.executionId()) == null) {
+      return;
+    }
     ExecutionContext context = getSparkSQLExecutionContext(startEvent.executionId());
-    context.start(startEvent);
+    if (context != null) {
+      context.start(startEvent);
+    }
   }
 
   /** called by the SparkListener when a spark-sql (Dataset api) execution ends */
@@ -186,11 +192,12 @@ public class OpenLineageSparkListener extends org.apache.spark.scheduler.SparkLi
                                     .map(ds -> ds.jobIdToActiveJob().get(jobStart.jobId()))
                                     .flatMap(ScalaConversionUtils::asJavaOptional))
                         .map(job -> getSqlExecutionId(job.properties())))
-            .map(
-                id -> {
-                  long executionId = Long.parseLong(id);
-                  return getExecutionContext(jobStart.jobId(), executionId);
-                })
+            .map(id -> Long.parseLong(id))
+            .filter(
+                id ->
+                    sparkSqlExecutionRegistry.containsKey(id)
+                        || SQLExecution.getQueryExecution(id) != null)
+            .map(id -> getExecutionContext(jobStart.jobId(), id))
             .orElseGet(() -> getExecutionContext(jobStart.jobId()));
 
     // set it in the rddExecutionRegistry so jobEnd is called
