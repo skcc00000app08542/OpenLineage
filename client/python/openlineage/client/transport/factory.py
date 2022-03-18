@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0.
 import inspect
 import os
 import logging
@@ -23,13 +24,18 @@ class DefaultTransportFactory(TransportFactory):
     def register_transport(self, type: str, clazz: Union[Type[Transport], str]):
         self.transports[type] = clazz
 
-    def create(self) -> Optional[Transport]:
+    def create(self) -> Transport:
         if yaml:
             yml_config = self._try_config_from_yaml()
             if yml_config:
                 return self._create_transport(yml_config)
         # Fallback to setting HTTP transport from env variables
-        return self._try_http_from_env_config()
+        http = self._try_http_from_env_config()
+        if http:
+            return http
+        # If there is no HTTP transport, log events to console
+        from openlineage.client.transport.console import ConsoleTransport, ConsoleConfig
+        return ConsoleTransport(ConsoleConfig())
 
     def _create_transport(self, config: dict):
         transport_type = config['type']
@@ -69,6 +75,15 @@ class DefaultTransportFactory(TransportFactory):
 
     @staticmethod
     def _find_yaml() -> Optional[str]:
+        # Check OPENLINEAGE_CONFIG env variable
+        try:
+            path = os.getenv('OPENLINEAGE_CONFIG', None)
+            if path and os.path.isfile(path) and os.access(path, os.R_OK):
+                return path
+        except Exception:
+            # We can get different errors depending on system
+            pass
+
         # Check current working directory:
         try:
             cwd = os.getcwd()
@@ -97,6 +112,8 @@ class DefaultTransportFactory(TransportFactory):
             return
         config = HttpConfig(
             url=os.environ['OPENLINEAGE_URL'],
-            api_key=os.environ.get('OPENLINEAGE_API_KEY', None)
+            auth={
+                "api_key": os.environ.get('OPENLINEAGE_API_KEY', None)
+            }
         )
         return HttpTransport(config)

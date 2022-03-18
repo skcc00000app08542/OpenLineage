@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0.
 import logging
 from urllib.parse import urljoin
 
 import attr
 
-from typing import Optional
+from typing import Optional, Dict
 
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -23,7 +24,7 @@ class HttpConfig(Config):
     timeout: float = attr.ib(default=5.0)
     # check TLS certificates
     verify: bool = attr.ib(default=True)
-    api_key: Optional[str] = attr.ib(default=None)
+    auth: Dict[str, str] = attr.ib(factory=dict)
 
     # not set by TransportFactory
     session: Optional[Session] = attr.ib(factory=Session)
@@ -31,10 +32,21 @@ class HttpConfig(Config):
     adapter: Optional[HTTPAdapter] = attr.ib(default=None)
 
     @classmethod
-    def from_dict(cls, params: dict):
+    def from_dict(cls, params: dict) -> 'HttpConfig':
         if 'url' not in params:
             raise RuntimeError("`url` key not passed to HttpConfig")
         return cls(**get_only_specified_fields(cls, params))
+
+    @classmethod
+    def from_options(cls, url: str, options, session: Optional[Session]) -> 'HttpConfig':
+        return cls(
+            url=url,
+            timeout=options.timeout,
+            verify=options.verify,
+            auth={"api_key": options.api_key},
+            session=session if session else Session(),
+            adapter=options.adapter
+        )
 
 
 class HttpTransport(Transport):
@@ -54,10 +66,9 @@ class HttpTransport(Transport):
         self.session.headers['Content-Type'] = 'application/json'
         self.timeout = config.timeout
         self.verify = config.verify
-        self.api_key = config.api_key
 
-        if self.api_key:
-            self._add_auth(self.api_key)
+        if 'api_key' in config.auth:
+            self._add_auth(config.auth['api_key'])
         if config.adapter:
             self.set_adapter(config.adapter)
 
