@@ -455,6 +455,18 @@ jobs:
           # Publish *.jar
           ./gradlew publish
 
+  build-openlineage-sql:
+    parameters:
+      image:
+        type: string
+    working_directory: ~/openlineage/sql
+    docker:
+      - image: << parameters.image >>
+    steps:
+      - run: pip install maturin
+      - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: maturin build
+
   workflow_complete:
     working_directory: ~/openlineage
     machine: true

@@ -1,0 +1,13 @@
+workflows:
+  openlineage-proxy:
+    jobs:
+      - build-openlineage-sql:
+          matrix:
+            parameters:
+              image: [
+                "quay.io/pypa/manylinux_2_24_x86_64",
+                "quay.io/pypa/manylinux_2_24_aarch64"
+              ]
+      - workflow_complete:
+          requires:
+            - build-openlineage-sql
