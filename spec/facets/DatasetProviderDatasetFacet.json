@@ -1,0 +1,37 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://openlineage.io/spec/facets/1-0-0/DatasetProviderDatasetFacet.json",
+  "$defs" : {
+    "DatasetProviderDatasetFacet": {
+      "allOf": [
+        {
+          "$ref": "https://openlineage.io/spec/1-0-2/OpenLineage.json#/$defs/DatasetFacet"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "datasetProvider": {
+              "description": "Dataset provider like iceberg, delta-lake, etc.",
+              "type": "string"
+            },
+            "datasetFormat": {
+              "description": "Dataset format like parquet, etc.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": true,
+          "required": [
+            "datasetProvider"
+          ]
+        }
+      ],
+      "type": "object"
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "provider" : {
+      "$ref" : "#/$defs/DatasetProviderDatasetFacet"
+    }
+  }
+}
